@@ -38,6 +38,7 @@
 #include <sys/stat.h>
 #ifdef PSP2
 #include "backends/fs/psp2/psp2-dirent.h"
+#define mkdir sceIoMkdir
 #else
 #include <dirent.h>
 #endif
@@ -261,11 +262,7 @@ bool POSIXFilesystemNode::create(bool isDirectoryFlag) {
 	bool success;
 
 	if (isDirectoryFlag) {
-#ifdef PSP2
-		success = sceIoMkdir(_path.c_str(), 0755) == 0;
-#else
 		success = mkdir(_path.c_str(), 0755) == 0;
-#endif
 	} else {
 		int fd = open(_path.c_str(), O_WRONLY | O_CREAT | O_TRUNC, 0755);
 		success = fd >= 0;
@@ -332,11 +329,7 @@ bool assureDirectoryExists(const Common::String &dir, const char *prefix) {
 			// simplifies the code a lot.
 			*cur = '\0';
 		}
-#ifdef PSP2
-		if (sceIoMkdir(path.c_str(), 0755) != 0) {
-#else
 		if (mkdir(path.c_str(), 0755) != 0) {
-#endif
 			if (errno == EEXIST) {
 				if (stat(path.c_str(), &sb) != 0) {
 					return false;

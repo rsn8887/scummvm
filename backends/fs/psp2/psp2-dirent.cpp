@@ -1,3 +1,25 @@
+/* ScummVM - Graphic Adventure Engine
+ *
+ * ScummVM is the legal property of its developers, whose names
+ * are too numerous to list here. Please refer to the COPYRIGHT
+ * file distributed with this source distribution.
+ *
+ * This program is free software; you can redistribute it and/or
+ * modify it under the terms of the GNU General Public License
+ * as published by the Free Software Foundation; either version 2
+ * of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA.
+ *
+ */
+
 /*
 
 Copyright (C) 2016, David "Davee" Morgan
@@ -34,8 +56,7 @@ DEALINGS IN THE SOFTWARE.
 #define SCE_ERRNO_MASK 0xFF
 
 
-struct DIR_
-{
+struct DIR_ {
 	SceUID uid;
 	struct dirent dir;
 	int refcount;
@@ -43,40 +64,32 @@ struct DIR_
 	int index;
 };
 
-static inline void grab_dir(DIR *dirp)
-{
+static inline void grab_dir(DIR *dirp) {
 	__sync_add_and_fetch(&dirp->refcount, 1);
 }
 
-static inline void drop_dir(DIR *dirp)
-{
-	if (__sync_add_and_fetch(&dirp->refcount, 1) == 0)
-	{
+static inline void drop_dir(DIR *dirp) {
+	if (__sync_add_and_fetch(&dirp->refcount, 1) == 0) {
 		free(dirp->dirname);
 		free(dirp);
 	}
 }
 
-static inline void release_drop_dir(DIR *dirp)
-{
-	if (__sync_add_and_fetch(&dirp->refcount, 2) == 0)
-	{
+static inline void release_drop_dir(DIR *dirp) {
+	if (__sync_add_and_fetch(&dirp->refcount, 2) == 0) {
 		free(dirp->dirname);
 		free(dirp);
 	}
 }
 
-static inline void atomic_exchange(int *obj, int desired)
-{
+static inline void atomic_exchange(int *obj, int desired) {
 	__sync_synchronize();
 	__sync_lock_test_and_set(obj, desired);
 }
 
 #ifdef F_closedir
-int	closedir(DIR *dirp)
-{
-	if (!dirp)
-	{
+int	closedir(DIR *dirp) {
+	if (!dirp) {
 		errno = EBADF;
 		return -1;
 	}
@@ -85,8 +98,7 @@ int	closedir(DIR *dirp)
 
 	int res = sceIoDclose(dirp->uid);
 
-	if (res < 0)
-	{
+	if (res < 0) {
 		errno = res & SCE_ERRNO_MASK;
 		drop_dir(dirp);
 		return -1;
@@ -100,20 +112,17 @@ int	closedir(DIR *dirp)
 #endif
 
 #if F_opendir
-DIR *opendir(const char *dirname)
-{
+DIR *opendir(const char *dirname) {
 	SceUID uid = sceIoDopen(dirname);
 
-	if (uid < 0)
-	{
+	if (uid < 0) {
 		errno = uid & SCE_ERRNO_MASK;
 		return NULL;
 	}
 
 	DIR *dirp = (DIR *)calloc(1, sizeof(DIR));
 
-	if (!dirp)
-	{
+	if (!dirp) {
 		sceIoDclose(uid);
 		errno = ENOMEM;
 		return NULL;
@@ -130,10 +139,8 @@ DIR *opendir(const char *dirname)
 #endif
 
 #ifdef F_readdir
-struct dirent *readdir(DIR *dirp)
-{
-	if (!dirp)
-	{
+struct dirent *readdir(DIR *dirp) {
+	if (!dirp) {
 		errno = EBADF;
 		return NULL;
 	}
@@ -142,15 +149,13 @@ struct dirent *readdir(DIR *dirp)
 
 	int res = sceIoDread(dirp->uid, (SceIoDirent *)&dirp->dir);
 
-	if (res < 0)
-	{
+	if (res < 0) {
 		errno = res & SCE_ERRNO_MASK;
 		drop_dir(dirp);
 		return NULL;
 	}
 
-	if (res == 0)
-	{
+	if (res == 0) {
 		errno = 0;
 		drop_dir(dirp);
 		return NULL;
@@ -164,18 +169,15 @@ struct dirent *readdir(DIR *dirp)
 }
 #endif
 #ifdef F_readdir_r
-int	readdir_r(DIR *dirp, struct dirent *x, struct dirent **y)
-{
+int	readdir_r(DIR *dirp, struct dirent *x, struct dirent **y) {
 	errno = ENOSYS;
 	return -1;
 }
 #endif
 
 #ifdef F_rewinddir
-void rewinddir(DIR *dirp)
-{
-	if (!dirp)
-	{
+void rewinddir(DIR *dirp) {
+	if (!dirp) {
 		errno = EBADF;
 		return;
 	}
@@ -184,8 +186,7 @@ void rewinddir(DIR *dirp)
 
 	SceUID dirfd = sceIoDopen(dirp->dirname);
 
-	if (dirfd < 0)
-	{
+	if (dirfd < 0) {
 		errno = dirfd & SCE_ERRNO_MASK;
 		drop_dir(dirp);
 		return;
@@ -200,10 +201,8 @@ void rewinddir(DIR *dirp)
 #endif
 
 #ifdef F_seekdir
-void seekdir(DIR *dirp, long int index)
-{
-	if (!dirp)
-	{
+void seekdir(DIR *dirp, long int index) {
+	if (!dirp) {
 		errno = EBADF;
 		return;
 	}
@@ -213,16 +212,13 @@ void seekdir(DIR *dirp, long int index)
 	if (index < dirp->index)
 		rewinddir(dirp);
 
-	if (index < dirp->index)
-	{
+	if (index < dirp->index) {
 		drop_dir(dirp);
 		return;
 	}
 
-	while (index != dirp->index)
-	{
-		if (!readdir(dirp))
-		{
+	while (index != dirp->index) {
+		if (!readdir(dirp)) {
 			errno = ENOENT;
 			drop_dir(dirp);
 			return;
@@ -234,10 +230,8 @@ void seekdir(DIR *dirp, long int index)
 #endif
 
 #ifdef F_telldir
-long int telldir(DIR *dirp)
-{
-	if (!dirp)
-	{
+long int telldir(DIR *dirp) {
+	if (!dirp) {
 		errno = EBADF;
 		return -1;
 	}
