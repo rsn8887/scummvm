@@ -27,8 +27,8 @@
 #include "backends/platform/androidsdl/androidsdl-sdl.h"
 #include "backends/events/androidsdl/androidsdl-events.h"
 #include "backends/graphics/androidsdl/androidsdl-graphics.h"
-#include <SDL_android.h>
-#include <SDL_screenkeyboard.h>
+#include <SDL_system.h>
+#include <SDL_keyboard.h>
 
 void OSystem_ANDROIDSDL::initBackend() {
 	// Create the backend custom managers
@@ -44,20 +44,20 @@ void OSystem_ANDROIDSDL::initBackend() {
 
 	if (!ConfMan.hasKey("gfx_mode"))
 		ConfMan.set("gfx_mode", "2x");
-	
+
 	if (!ConfMan.hasKey("swap_menu_and_back_buttons"))
-		ConfMan.setBool("swap_menu_and_back_buttons", true);
+		ConfMan.setBool("swap_menu_and_back_buttons", false);
 	else
-		swapMenuAndBackButtons(ConfMan.getBool("swap_menu_and_back_buttons"));
-	
+		dynamic_cast<AndroidSdlEventSource *>(_eventSource)->swapMenuAndBackButtons(ConfMan.getBool("swap_menu_and_back_buttons"));
+
 	if (!ConfMan.hasKey("touchpad_mouse_mode")) {
-		const bool enable = SDL_ANDROID_GetMouseEmulationMode();
+		const bool enable = SDL_GetRelativeMouseMode();
 		ConfMan.setBool("touchpad_mouse_mode", enable);
 	} else
-		touchpadMode(ConfMan.getBool("touchpad_mouse_mode"));
-	
+		SDL_SetRelativeMouseMode(ConfMan.getBool("touchpad_mouse_mode") ? SDL_TRUE : SDL_FALSE);
+
 	if (!ConfMan.hasKey("onscreen_control")) {
-		const bool enable = SDL_ANDROID_GetScreenKeyboardShown();
+		const bool enable = SDL_IsTextInputActive();
 		ConfMan.setBool("onscreen_control", enable);
 	} else
 		showOnScreenControl(ConfMan.getBool("onscreen_control"));
@@ -68,43 +68,16 @@ void OSystem_ANDROIDSDL::initBackend() {
 
 void OSystem_ANDROIDSDL::showOnScreenControl(bool enable) {
 	if (enable)
-		SDL_ANDROID_SetScreenKeyboardShown(1);
+		SDL_StartTextInput();
 	else
-		SDL_ANDROID_SetScreenKeyboardShown(0);
-}
-
-void OSystem_ANDROIDSDL::touchpadMode(bool enable) {
-	if (enable)
-		switchToRelativeMouseMode();
-	else
-		switchToDirectMouseMode();
-}
-
-void OSystem_ANDROIDSDL::swapMenuAndBackButtons(bool enable) {
-	static int KEYCODE_MENU = 82;
-	static int KEYCODE_BACK = 4;
-	if (enable) {
-		SDL_ANDROID_SetAndroidKeycode(KEYCODE_BACK, SDLK_F13);
-		SDL_ANDROID_SetAndroidKeycode(KEYCODE_MENU, SDLK_ESCAPE);
-	} else {
-		SDL_ANDROID_SetAndroidKeycode(KEYCODE_BACK, SDLK_ESCAPE);
-		SDL_ANDROID_SetAndroidKeycode(KEYCODE_MENU, SDLK_F13);
-	}
-}
-
-void OSystem_ANDROIDSDL::switchToDirectMouseMode() {
-	SDL_ANDROID_SetMouseEmulationMode(0, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
-}
-
-void OSystem_ANDROIDSDL::switchToRelativeMouseMode() {
-	SDL_ANDROID_SetMouseEmulationMode(1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, -1);
+		SDL_StopTextInput();
 }
 
 void OSystem_ANDROIDSDL::setFeatureState(Feature f, bool enable) {
 	switch (f) {
 		case kFeatureTouchpadMode:
 			ConfMan.setBool("touchpad_mouse_mode", enable);
-			touchpadMode(enable);
+			SDL_SetRelativeMouseMode(enable ? SDL_TRUE : SDL_FALSE);
 			break;
 		case kFeatureOnScreenControl:
 			ConfMan.setBool("onscreen_control", enable);
@@ -112,10 +85,10 @@ void OSystem_ANDROIDSDL::setFeatureState(Feature f, bool enable) {
 			break;
 		case kFeatureSwapMenuAndBackButtons:
 			ConfMan.setBool("swap_menu_and_back_buttons", enable);
-			swapMenuAndBackButtons(enable);
+			dynamic_cast<AndroidSdlEventSource *>(_eventSource)->swapMenuAndBackButtons(enable);
 			break;
 	}
-	
+
 	OSystem_POSIX::setFeatureState(f, enable);
 }
 

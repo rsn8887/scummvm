@@ -58,21 +58,22 @@ bool AndroidSdlEventSource::handleMouseButtonDown(SDL_Event &ev, Common::Event &
 }
 
 bool AndroidSdlEventSource::remapKey(SDL_Event &ev, Common::Event &event) {
-	if (false) {}
-
-	if (ev.key.keysym.sym == SDLK_F13) {
-		event.type = Common::EVENT_MAINMENU;
-		return true;
-	} else {
-		// Let the events fall through if we didn't change them, this may not be the best way to
-		// set it up, but i'm not sure how sdl would like it if we let if fall through then redid it though.
-		// and yes i have an huge terminal size so i dont wrap soon enough.
-		event.type = Common::EVENT_KEYDOWN;
-		event.kbd.keycode = (Common::KeyCode)ev.key.keysym.sym;
-		event.kbd.ascii = mapKey(ev.key.keysym.sym, ev.key.keysym.mod, ev.key.keysym.unicode);
+	SDLKey sdlKeycode = obtainKeycode(ev.key.keysym);
+	if (_swapMenuAndBackButtons) {
+		if (sdlKeycode == SDLK_AC_BACK) {
+			sdlKeycode = SDLK_MENU;
+		} else if (sdlKeycode == SDLK_MENU) {
+			sdlKeycode = SDLK_AC_BACK;
+		}
 	}
 
-	return false;
+	if (sdlKeycode == SDLK_AC_BACK) {
+		event.kbd.keycode = Common::KEYCODE_ESCAPE;
+		event.kbd.ascii = mapKey(SDLK_ESCAPE, (SDLMod)ev.key.keysym.mod, obtainUnicode(ev.key.keysym));
+		return true;
+	}
+
+	return SdlEventSource::remapKey(ev, event);
 }
 
 int AndroidSdlEventSource::mapKey(SDLKey sdlKey, SDLMod mod, Uint16 unicode) {

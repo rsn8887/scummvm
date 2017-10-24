@@ -29,10 +29,19 @@
  * SDL events manager for ANDROIDSDL
  */
 class AndroidSdlEventSource : public SdlEventSource {
+public:
+	AndroidSdlEventSource() : SdlEventSource(),
+		_swapMenuAndBackButtons(false) {}
+
+	void swapMenuAndBackButtons(bool enable) { _swapMenuAndBackButtons = enable; }
+
 protected:
 	virtual bool handleMouseButtonDown(SDL_Event &ev, Common::Event &event);
 	virtual bool remapKey(SDL_Event &ev, Common::Event &event);
 	virtual int mapKey(SDLKey key, SDLMod mod, Uint16 unicode);
+
+private:
+	bool _swapMenuAndBackButtons;
 };
 
 #endif
