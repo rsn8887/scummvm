@@ -440,7 +440,7 @@ bool DisplayManager::renderAll() {
 	                _overlay->isDirty() ? "true" : "false",
 	                _cursor->isDirty() ? "true" : "false",
 	                _keyboard->isDirty() ? "true" : "false",
-					_imageViewer->isDirty() ? "true" : "false",
+					_imageViewer->isDirty() ? "true" : "false"
 	               );
 
 	_masterGuRenderer.guPreRender();	// Set up rendering
