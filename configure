@@ -2823,7 +2823,6 @@ if test -n "$_host"; then
 			HOSTEXEEXT=.so
 			_backend="android"
 			_port_mk="backends/platform/android/android.mk"
-			_build_scalers=no
 			_seq_midi=no
 			_mt32emu=no
 			_timidity=no
