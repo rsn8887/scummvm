@@ -164,7 +164,7 @@ _libunity=auto
 _debug_build=auto
 _release_build=auto
 _optimizations=auto
-_use_cxx11=no
+_use_cxx11=yes
 _verbose_build=no
 _text_console=no
 _mt32emu=yes
@@ -1287,7 +1287,6 @@ for ac_option in $@; do
 		_backend=`echo $ac_option | cut -d '=' -f 2`
 		;;
 	--enable-c++11)
-		_use_cxx11=yes
 		;;
 	--disable-c++11)
 		_use_cxx11=no
