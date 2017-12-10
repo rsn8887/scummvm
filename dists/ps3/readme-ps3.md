@@ -21,14 +21,21 @@ Savegames are wrote in the /hdd0/game/SCUM12000/saves folder.
 
 Joypad button mapping
 =====================
-- Left stick => Mouse
-- Cross      => Left mouse button
-- Circle     => Right mouse button
-- Triangle   => Game menu (F5)
-- Square     => Escape
-- Start      => ScummVM's in global game menu
-- Select     => Toggle virtual keyboard
-- L1         => AGI predictive input dialog
+- Left stick     => Mouse
+- R + Left stick => Slow Mouse
+- Cross          => Left mouse button
+- Circle         => Right mouse button
+- DPad           => Cursor Keys (useful for character motion)
+- R + DPad       => Diagonal Cursor Keys
+- L Trigger      => Game menu (F5)
+- R Trigger      => Shift (used to enable Mass Add in menu)
+- Square         => Period '.' (used to skip dialog lines)
+- R + Square     => Space ' '
+- Triangle       => Escape (used to skip cutscenes)
+- R + Triangle   => Return
+- Start          => ScummVM's global in-game menu
+- Select         => Toggle virtual keyboard
+- R + Select     => AGI predictive input dialog
 
 Disclaimer
 ==========
