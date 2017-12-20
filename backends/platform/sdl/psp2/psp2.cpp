@@ -110,6 +110,14 @@ void OSystem_PSP2::initBackend() {
 	if (_graphicsManager == 0)
 		_graphicsManager = new PSP2SdlGraphicsManager(_eventSource, _window);
 
+	// Controller mappings for Vita, various names have been used in various SDL versions
+	SDL_GameControllerAddMapping("50535669746120436f6e74726f6c6c65,PSVita Controller,y:b0,b:b1,a:b2,x:b3,leftshoulder:b4,rightshoulder:b5,dpdown:b6,dpleft:b7,dpup:b8,dpright:b9,leftx:a0,lefty:a1,rightx:a2,righty:a3,");
+	SDL_GameControllerAddMapping("50535669746120636f6e74726f6c6c65,PSVita controller,y:b0,b:b1,a:b2,x:b3,leftshoulder:b4,rightshoulder:b5,dpdown:b6,dpleft:b7,dpup:b8,dpright:b9,leftx:a0,lefty:a1,rightx:a2,righty:a3,");
+	SDL_GameControllerAddMapping("50535669746120636f6e74726f6c6c65,PSVita controller 2,y:b0,b:b1,a:b2,x:b3,leftshoulder:b4,rightshoulder:b5,dpdown:b6,dpleft:b7,dpup:b8,dpright:b9,leftx:a0,lefty:a1,rightx:a2,righty:a3,");
+	SDL_GameControllerAddMapping("50535669746120636f6e74726f6c6c65,PSVita controller 3,y:b0,b:b1,a:b2,x:b3,leftshoulder:b4,rightshoulder:b5,dpdown:b6,dpleft:b7,dpup:b8,dpright:b9,leftx:a0,lefty:a1,rightx:a2,righty:a3,");
+	SDL_GameControllerAddMapping("50535669746120636f6e74726f6c6c65,PSVita controller 4,y:b0,b:b1,a:b2,x:b3,leftshoulder:b4,rightshoulder:b5,dpdown:b6,dpleft:b7,dpup:b8,dpright:b9,leftx:a0,lefty:a1,rightx:a2,righty:a3,");
+	SDL_GameControllerAddMapping("505356697461206275696c74696e206a,PSVita builtin joypad,y:b0,b:b1,a:b2,x:b3,leftshoulder:b4,rightshoulder:b5,dpdown:b6,dpleft:b7,dpup:b8,dpright:b9,leftx:a0,lefty:a1,rightx:a2,righty:a3,");
+
 	// Invoke parent implementation of this method
 	OSystem_SDL::initBackend();
 }
