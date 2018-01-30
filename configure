@@ -171,6 +171,7 @@ _mt32emu=yes
 _build_scalers=yes
 _build_hq_scalers=yes
 _enable_prof=no
+_static_libs=no
 _global_constructors=no
 _no_undefined_var_template=no
 _bink=yes
@@ -975,6 +976,8 @@ Optional Features:
   --enable-optimizations=FLAG enable a specific optimization level (e.g. -O2)
   --enable-profiling       enable profiling
   --enable-plugins         enable the support for dynamic plugins
+  --enable-static-libs     use static linking information from system library
+                           configuration scripts
   --default-dynamic        make plugins dynamic by default
   --disable-mt32emu        don't enable the integrated MT-32 emulator
   --disable-16bit          don't enable 16bit color support
@@ -1331,6 +1334,12 @@ for ac_option in $@; do
 	--enable-profiling)
 		_enable_prof=yes
 		;;
+	--enable-static-libs)
+		_static_libs=yes
+		;;
+	--disable-static-libs)
+		_static_libs=no
+		;;
 	--with-sdl-prefix=*)
 		arg=`echo $ac_option | cut -d '=' -f 2`
 		_sdlpath="$arg:$arg/bin"
@@ -1348,6 +1357,7 @@ for ac_option in $@; do
 		_nasmpath="$arg:$arg/bin"
 		;;
 	--with-staticlib-prefix=*)
+		_static_libs=yes
 		_staticlibpath=`echo $ac_option | cut -d '=' -f 2`
 		;;
 	--with-xcodetools-path=*)
@@ -3474,7 +3484,7 @@ case $_backend in
 	androidsdl | dingux | gph | linuxmoto | maemo | openpandora | samsungtv | sdl)
 		find_sdlconfig
 		append_var INCLUDES "`$_sdlconfig --prefix="$_sdlpath" --cflags`"
-		if test -n "$_staticlibpath"; then
+		if test "$_static_libs" = "yes"; then
 			append_var LIBS "`$_sdlconfig --prefix="$_sdlpath" --static-libs`"
 		else
 			append_var LIBS "`$_sdlconfig --prefix="$_sdlpath" --libs`"
@@ -4351,7 +4361,7 @@ if test "$_libcurl" != "no"; then
 	if test -z "$_libcurlconfig"; then
 		_libcurl=no
 	else
-		if test -n "$_staticlibpath"; then
+		if test "$_static_libs" = "yes"; then
 			LIBCURL_LIBS=`$_libcurlconfig --static-libs`
 		else
 			LIBCURL_LIBS=`$_libcurlconfig --libs`
