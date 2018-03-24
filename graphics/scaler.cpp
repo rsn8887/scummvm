@@ -27,6 +27,7 @@
 #include "common/textconsole.h"
 
 int gBitFormat = 565;
+int pScanlines = 0;
 
 #ifdef USE_HQ_SCALERS
 // RGB-to-YUV lookup table
@@ -79,6 +80,7 @@ uint32 hqx_green_redBlue_Mask = 0;
  * CPUs.
  */
 uint32 *RGBtoYUV = 0;
+
 }
 
 void InitLUT(Graphics::PixelFormat format) {
@@ -122,6 +124,7 @@ void InitLUT(Graphics::PixelFormat format) {
 
 /** Lookup table for the DotMatrix scaler. */
 uint16 g_dotmatrix[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
+uint16 g_dotmatrix1[16] = {0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0};
 
 /** Init the scaler subsystem. */
 void InitScalers(uint32 BitFormat) {
@@ -145,11 +148,18 @@ void InitScalers(uint32 BitFormat) {
 #endif
 
 	// Build dotmatrix lookup table for the DotMatrix scaler.
-	g_dotmatrix[0] = g_dotmatrix[10] = format.RGBToColor(0, 63, 0);
-	g_dotmatrix[1] = g_dotmatrix[11] = format.RGBToColor(0, 0, 63);
-	g_dotmatrix[2] = g_dotmatrix[8] = format.RGBToColor(63, 0, 0);
-	g_dotmatrix[4] = g_dotmatrix[6] =
-		g_dotmatrix[12] = g_dotmatrix[14] = format.RGBToColor(63, 63, 63);
+	g_dotmatrix[0]  = g_dotmatrix[10] = format.RGBToColor(0, 63, 0);
+	g_dotmatrix[1]  = g_dotmatrix[11] = format.RGBToColor(0, 0, 63);
+	g_dotmatrix[2]  = g_dotmatrix[8]  = format.RGBToColor(63, 0, 0);
+	g_dotmatrix[4]  = g_dotmatrix[6]  =
+	g_dotmatrix[12] = g_dotmatrix[14] = format.RGBToColor(63, 63, 63);
+	
+	// Build dotmatrix lookup table for the DotMatrix scaler. (Alt)
+	g_dotmatrix1[0]  = g_dotmatrix1[10] = format.RGBToColor(0, 23, 0);
+	g_dotmatrix1[1]  = g_dotmatrix1[11] = format.RGBToColor(0, 0, 23);
+	g_dotmatrix1[2]  = g_dotmatrix1[8]  = format.RGBToColor(23, 0, 0);
+	g_dotmatrix1[4]  = g_dotmatrix1[6]  =
+	g_dotmatrix1[12] = g_dotmatrix1[14] = format.RGBToColor(23, 23, 23);	
 }
 
 void DestroyScalers() {
@@ -344,6 +354,7 @@ void TV2xTemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 ds
 	}
 }
 
+
 void TV2x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
 	if (gBitFormat == 565)
 		TV2xTemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
@@ -365,7 +376,7 @@ static inline uint16 DOT_16(const uint16 *dotmatrix, uint16 c, int j, int i) {
 void DotMatrix(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
 					int width, int height) {
 
-	const uint16 *dotmatrix = g_dotmatrix;
+	const uint16 *dotmatrix = g_dotmatrix1;
 
 	const uint32 nextlineSrc = srcPitch / sizeof(uint16);
 	const uint16 *p = (const uint16 *)srcPtr;
@@ -384,6 +395,892 @@ void DotMatrix(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPi
 		p += nextlineSrc;
 		q += nextlineDst << 1;
 	}
+}
+
+// Scanlines Template 100 Percent ///////////////////////////////////////////////////////////////////////////////////
+template<typename ColorMask>
+void scan2xtemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+	int ScanlineBrightness;
+
+	const uint32 nextlineSrc = srcPitch / sizeof(uint16);
+	const uint16 *p = (const uint16 *)srcPtr;
+
+	const uint32 nextlineDst = dstPitch / sizeof(uint16);
+	uint16 *q = (uint16 *)dstPtr;
+
+	while (height--) {
+		for (int i = 0, j = 0, k = 0; i < width; i += 1, j += 2, k += 2) {
+			uint16 p1 = *(p + i);
+			uint32 pi;			
+
+			switch (pScanlines) {
+			case 100:	ScanlineBrightness = 0;break;
+			case 80:	ScanlineBrightness = 2;break;
+			case 60:	ScanlineBrightness = 3;break;
+			case 40:	ScanlineBrightness = 4;break;
+			case 20:	ScanlineBrightness = 5;break;
+			default:	ScanlineBrightness = 6;
+			}
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 3) & ColorMask::kGreenMask;
+			*(q + j) = p1;
+			*(q + j + 1) = p1;
+			*(q + j + nextlineDst) = (uint16)pi;
+			*(q + j + nextlineDst + 1) = (uint16)pi;
+		}
+		p += nextlineSrc;
+		q += nextlineDst << 1;
+
+	}
+}
+void Scanlines2X(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		scan2xtemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		scan2xtemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+template<typename ColorMask>
+void rgb2xTempplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+
+	const uint32 nextlineSrc = srcPitch / sizeof(uint16);
+	const uint16 *p = (const uint16 *)srcPtr;
+
+	const uint32 nextlineDst = dstPitch / sizeof(uint16);
+	uint16 *q = (uint16 *)dstPtr;
+
+	while (height--) {
+		for (int i = 0, j = 0; i < width; ++i, j += 2) {
+			uint16 p1 = *(p + i);
+
+			*(q + j) = p1 & ColorMask::kRedMask;
+			*(q + j + 1) = p1 & ColorMask::kGreenMask;
+			*(q + j + nextlineDst) = p1 & ColorMask::kBlueMask;
+			*(q + j + nextlineDst + 1) = p1;
+		}
+		p += nextlineSrc;
+		q += nextlineDst << 1;
+
+	}
+}
+
+void rgb_2x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		rgb2xTempplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		rgb2xTempplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+template<typename ColorMask>
+void TV3xTemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 6) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 3) & ColorMask::kGreenMask;
+
+			*(uint16 *)(r + 0) = p1;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 4) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch2) = (uint16)pi;
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch3;
+	}
+
+}
+
+
+void TV3x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		TV3xTemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		TV3xTemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+template<typename ColorMask>
+void rgb3xTemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 6) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 4) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 4) >> 3) & ColorMask::kGreenMask;
+
+			*(uint16 *)(r + 0) = p1 & ColorMask::kRedMask;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) =  p1 & ColorMask::kGreenMask;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 4) >> 4) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 4) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch2) = p1 & ColorMask::kBlueMask;
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch3;
+	}
+
+}
+
+
+void rgb_3x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		rgb3xTemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		rgb3xTemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+template<typename ColorMask>
+void scan3xtemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+	uint8 *r;
+	int ScanlineBrightness;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 6) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+			uint32 p3;
+
+			switch (pScanlines) {
+			case 100:	ScanlineBrightness = 0;break;
+			case 80:	ScanlineBrightness = 2;break;
+			case 60:	ScanlineBrightness = 3;break;
+			case 40:	ScanlineBrightness = 4;break;
+			case 20:	ScanlineBrightness = 5;break;
+			default:	ScanlineBrightness = 7;break;
+			}
+			pi = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 3) & ColorMask::kGreenMask;
+			p3 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 4) & ColorMask::kRedBlueMask;
+			p3 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0) = p1;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;
+
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 4 + dstPitch2) = (uint16)p3;
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch3;
+	}
+
+}
+
+void Scanlines3X(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		scan3xtemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		scan3xtemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+void Normal4x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+							int width, int height) {
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 8) {
+			uint16 color = *(((const uint16 *)srcPtr) + i);
+
+			*(uint16 *)(r + 0) = color;
+			*(uint16 *)(r + 2) = color;
+			*(uint16 *)(r + 4) = color;
+			*(uint16 *)(r + 6) = color;
+			
+			*(uint16 *)(r + 0 + dstPitch) = color;
+			*(uint16 *)(r + 2 + dstPitch) = color;
+			*(uint16 *)(r + 4 + dstPitch) = color;
+			*(uint16 *)(r + 6 + dstPitch) = color;
+			
+			*(uint16 *)(r + 0 + dstPitch2) = color;
+			*(uint16 *)(r + 2 + dstPitch2) = color;
+			*(uint16 *)(r + 4 + dstPitch2) = color;
+			*(uint16 *)(r + 6 + dstPitch2) = color;
+			
+			*(uint16 *)(r + 0 + dstPitch3) = color;
+			*(uint16 *)(r + 2 + dstPitch3) = color;
+			*(uint16 *)(r + 4 + dstPitch3) = color;
+			*(uint16 *)(r + 6 + dstPitch3) = color;
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch4;
+	}
+}
+
+template<typename ColorMask>
+void TV4xTemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;	
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 8) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 3) & ColorMask::kGreenMask;
+
+			*(uint16 *)(r + 0) = p1;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 6) = p1;
+			
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch) = (uint16)pi;
+			
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 4) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch2) = (uint16)pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 3) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch3) = (uint16)pi;
+						
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch4;
+	}
+
+}
+
+
+void TV4x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		TV4xTemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		TV4xTemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+template<typename ColorMask>
+void rgb4xTemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;		
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 8) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 4) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 4) >> 3) & ColorMask::kGreenMask;
+
+			*(uint16 *)(r + 0) = p1 & ColorMask::kRedMask;
+			*(uint16 *)(r + 2) = p1 & ColorMask::kGreenMask;
+			*(uint16 *)(r + 4) = p1 & ColorMask::kBlueMask;
+			*(uint16 *)(r + 6) = p1;
+			
+			*(uint16 *)(r + 0 + dstPitch) = p1 & ColorMask::kRedMask;
+			*(uint16 *)(r + 2 + dstPitch) = p1 & ColorMask::kGreenMask;
+			*(uint16 *)(r + 4 + dstPitch) = p1 & ColorMask::kBlueMask;
+			*(uint16 *)(r + 6 + dstPitch) = (uint16)pi;
+			
+			pi = (((p1 & ColorMask::kRedBlueMask) * 5) >> 4) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 5) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch2) = p1 & ColorMask::kRedMask;
+			*(uint16 *)(r + 2 + dstPitch2) = p1 & ColorMask::kGreenMask;
+			*(uint16 *)(r + 4 + dstPitch2) = p1 & ColorMask::kBlueMask;
+			*(uint16 *)(r + 6 + dstPitch2) = (uint16)pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 4) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 4) >> 3) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch3) = p1 & ColorMask::kRedMask;
+			*(uint16 *)(r + 2 + dstPitch3) = p1 & ColorMask::kGreenMask;
+			*(uint16 *)(r + 4 + dstPitch3) = p1 & ColorMask::kBlueMask;
+			*(uint16 *)(r + 6 + dstPitch3) = (uint16)pi;
+						
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch4;
+	}
+
+}
+
+
+void rgb_4x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		rgb4xTemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		rgb4xTemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+template<typename ColorMask>
+void scan4xtemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+	uint8 *r;
+	int ScanlineBrightness;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;		
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 8) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+			uint32 p3;
+			uint32 p4;
+
+			switch (pScanlines) {
+			case 100:	ScanlineBrightness = 0;break;
+			case 80:	ScanlineBrightness = 2;break;
+			case 60:	ScanlineBrightness = 3;break;
+			case 40:	ScanlineBrightness = 4;break;
+			case 20:	ScanlineBrightness = 5;break;
+			default:	ScanlineBrightness = 7;break;
+			}
+			pi = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 3) & ColorMask::kGreenMask;
+			p3 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 4) & ColorMask::kRedBlueMask;
+			p3 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 4) & ColorMask::kGreenMask;
+			p4 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 3) & ColorMask::kRedBlueMask;
+			p4 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 3) & ColorMask::kGreenMask;			
+			*(uint16 *)(r + 0) = p1;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 6) = p1;
+			
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;			
+			*(uint16 *)(r + 6 + dstPitch) = (uint16)pi;
+
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 4 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 6 + dstPitch2) = (uint16)p3;			
+			
+			*(uint16 *)(r + 0 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 2 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 4 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 6 + dstPitch3) = (uint16)p4;			
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch4;
+	}
+
+}
+
+			// *(q + j) = p1 & ColorMask::kRedMask;
+			// *(q + j + 1) = p1 & ColorMask::kGreenMask;
+			// *(q + j + nextlineDst) = p1 & ColorMask::kBlueMask;
+			// *(q + j + nextlineDst + 1) = p1;
+void Scanlines4X(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		scan4xtemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		scan4xtemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+void Normal5x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+							int width, int height) {
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;
+	const uint32 dstPitch5 = dstPitch * 5;
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 10) {
+			uint16 color = *(((const uint16 *)srcPtr) + i);
+
+			*(uint16 *)(r + 0) = color;
+			*(uint16 *)(r + 2) = color;
+			*(uint16 *)(r + 4) = color;
+			*(uint16 *)(r + 6) = color;
+			*(uint16 *)(r + 8) = color;
+			*(uint16 *)(r + 0 + dstPitch) = color;
+			*(uint16 *)(r + 2 + dstPitch) = color;
+			*(uint16 *)(r + 4 + dstPitch) = color;
+			*(uint16 *)(r + 6 + dstPitch) = color;
+			*(uint16 *)(r + 8 + dstPitch) = color;
+			*(uint16 *)(r + 0 + dstPitch2) = color;
+			*(uint16 *)(r + 2 + dstPitch2) = color;
+			*(uint16 *)(r + 4 + dstPitch2) = color;
+			*(uint16 *)(r + 6 + dstPitch2) = color;
+			*(uint16 *)(r + 8 + dstPitch2) = color;
+			*(uint16 *)(r + 0 + dstPitch3) = color;
+			*(uint16 *)(r + 2 + dstPitch3) = color;
+			*(uint16 *)(r + 4 + dstPitch3) = color;
+			*(uint16 *)(r + 6 + dstPitch3) = color;
+			*(uint16 *)(r + 8 + dstPitch3) = color;
+			*(uint16 *)(r + 0 + dstPitch4) = color;
+			*(uint16 *)(r + 2 + dstPitch4) = color;
+			*(uint16 *)(r + 4 + dstPitch4) = color;
+			*(uint16 *)(r + 6 + dstPitch4) = color;
+			*(uint16 *)(r + 8 + dstPitch4) = color;
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch5;
+	}
+}
+
+template<typename ColorMask>
+void TV5xTemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;
+	const uint32 dstPitch5 = dstPitch * 5;
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 10) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 3) & ColorMask::kGreenMask;
+
+			*(uint16 *)(r + 0) = p1;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 6) = p1;
+			*(uint16 *)(r + 8) = p1;			
+			
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch) = (uint16)pi;			
+			
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 4) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch2) = (uint16)pi;			
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 3) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch3) = (uint16)pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 4) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch4) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch4) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch4) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch4) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch4) = (uint16)pi;			
+						
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch5;
+	}
+
+}
+
+
+void TV5x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		TV5xTemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		TV5xTemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+template<typename ColorMask>
+void scan5xtemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+	uint8 *r;
+	int ScanlineBrightness;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;
+	const uint32 dstPitch5 = dstPitch * 5;	
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 10) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+			uint32 p3;
+			uint32 p4;
+			uint32 p5;			
+
+			switch (pScanlines) {
+			case 100:	ScanlineBrightness = 0;break;
+			case 80:	ScanlineBrightness = 2;break;
+			case 60:	ScanlineBrightness = 3;break;
+			case 40:	ScanlineBrightness = 4;break;
+			case 20:	ScanlineBrightness = 5;break;
+			default:	ScanlineBrightness = 7;break;
+			}
+			pi = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 3) & ColorMask::kGreenMask;
+			p3 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 4) & ColorMask::kRedBlueMask;
+			p3 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 4) & ColorMask::kGreenMask;
+			p4 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 5) & ColorMask::kRedBlueMask;
+			p4 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 5) & ColorMask::kGreenMask;			
+			p5 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 4) & ColorMask::kRedBlueMask;
+			p5 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 4) & ColorMask::kGreenMask;			
+			*(uint16 *)(r + 0) = p1;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 6) = p1;
+			*(uint16 *)(r + 8) = p1;
+			
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;			
+			*(uint16 *)(r + 6 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch) = (uint16)pi;
+			
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 4 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 6 + dstPitch2) = (uint16)p3;			
+			*(uint16 *)(r + 8 + dstPitch2) = (uint16)p3;
+			
+			*(uint16 *)(r + 0 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 2 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 4 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 6 + dstPitch3) = (uint16)p4;	
+			*(uint16 *)(r + 8 + dstPitch3) = (uint16)p4;
+			
+			*(uint16 *)(r + 0 + dstPitch4) = (uint16)p5;
+			*(uint16 *)(r + 2 + dstPitch4) = (uint16)p5;
+			*(uint16 *)(r + 4 + dstPitch4) = (uint16)p5;
+			*(uint16 *)(r + 6 + dstPitch4) = (uint16)p5;	
+			*(uint16 *)(r + 8 + dstPitch4) = (uint16)p5;			
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch5;
+	}
+
+}
+
+void Scanlines5X(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		scan5xtemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		scan5xtemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+
+void Normal6x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+							int width, int height) {
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;
+	const uint32 dstPitch5 = dstPitch * 5;
+	const uint32 dstPitch6 = dstPitch * 6;
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 12) {
+			uint16 color = *(((const uint16 *)srcPtr) + i);
+
+			*(uint16 *)(r + 0) = color;
+			*(uint16 *)(r + 2) = color;
+			*(uint16 *)(r + 4) = color;
+			*(uint16 *)(r + 6) = color;
+			*(uint16 *)(r + 8) = color;
+			*(uint16 *)(r + 10) = color;
+			*(uint16 *)(r + 0 + dstPitch) = color;
+			*(uint16 *)(r + 2 + dstPitch) = color;
+			*(uint16 *)(r + 4 + dstPitch) = color;
+			*(uint16 *)(r + 6 + dstPitch) = color;
+			*(uint16 *)(r + 8 + dstPitch) = color;
+			*(uint16 *)(r + 10 + dstPitch) = color;
+			*(uint16 *)(r + 0 + dstPitch2) = color;
+			*(uint16 *)(r + 2 + dstPitch2) = color;
+			*(uint16 *)(r + 4 + dstPitch2) = color;
+			*(uint16 *)(r + 6 + dstPitch2) = color;
+			*(uint16 *)(r + 8 + dstPitch2) = color;
+			*(uint16 *)(r + 10 + dstPitch2) = color;
+			*(uint16 *)(r + 0 + dstPitch3) = color;
+			*(uint16 *)(r + 2 + dstPitch3) = color;
+			*(uint16 *)(r + 4 + dstPitch3) = color;
+			*(uint16 *)(r + 6 + dstPitch3) = color;
+			*(uint16 *)(r + 8 + dstPitch3) = color;
+			*(uint16 *)(r + 10 + dstPitch3) = color;
+			*(uint16 *)(r + 0 + dstPitch4) = color;
+			*(uint16 *)(r + 2 + dstPitch4) = color;
+			*(uint16 *)(r + 4 + dstPitch4) = color;
+			*(uint16 *)(r + 6 + dstPitch4) = color;
+			*(uint16 *)(r + 8 + dstPitch4) = color;
+			*(uint16 *)(r + 10 + dstPitch4) = color;
+			*(uint16 *)(r + 0 + dstPitch5) = color;
+			*(uint16 *)(r + 2 + dstPitch5) = color;
+			*(uint16 *)(r + 4 + dstPitch5) = color;
+			*(uint16 *)(r + 6 + dstPitch5) = color;
+			*(uint16 *)(r + 8 + dstPitch5) = color;
+			*(uint16 *)(r + 10 + dstPitch5) = color;
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch6;
+	}
+}
+
+template<typename ColorMask>
+void TV6xTemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+
+	uint8 *r;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;
+	const uint32 dstPitch5 = dstPitch * 5;
+	const uint32 dstPitch6 = dstPitch * 6;	
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 12) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 3) & ColorMask::kGreenMask;
+
+			*(uint16 *)(r + 0) = p1;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 6) = p1;
+			*(uint16 *)(r + 8) = p1;	
+			*(uint16 *)(r + 10) = p1;				
+			
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch) = (uint16)pi;	
+			*(uint16 *)(r + 10 + dstPitch) = (uint16)pi;				
+			
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 4) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch2) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch2) = (uint16)pi;	
+			*(uint16 *)(r + 10 + dstPitch2) = (uint16)pi;			
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 3) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch3) = (uint16)pi;
+			*(uint16 *)(r + 10 + dstPitch3) = (uint16)pi;			
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 4) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 4) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch4) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch4) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch4) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch4) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch4) = (uint16)pi;	
+			*(uint16 *)(r + 10 + dstPitch4) = (uint16)pi;			
+
+			pi = (((p1 & ColorMask::kRedBlueMask) * 7) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * 7) >> 3) & ColorMask::kGreenMask;
+			*(uint16 *)(r + 0 + dstPitch5) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch5) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch5) = (uint16)pi;
+			*(uint16 *)(r + 6 + dstPitch5) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch5) = (uint16)pi;
+			*(uint16 *)(r + 10 + dstPitch5) = (uint16)pi;			
+			
+						
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch6;
+	}
+
+}
+
+
+void TV6x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		TV6xTemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		TV6xTemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+template<typename ColorMask>
+void scan6xtemplate(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+	int width, int height) {
+	uint8 *r;
+	int ScanlineBrightness;
+	const uint32 dstPitch2 = dstPitch * 2;
+	const uint32 dstPitch3 = dstPitch * 3;
+	const uint32 dstPitch4 = dstPitch * 4;
+	const uint32 dstPitch5 = dstPitch * 5;	
+	const uint32 dstPitch6 = dstPitch * 6;		
+
+	assert(IS_ALIGNED(dstPtr, 2));
+	while (height--) {
+		r = dstPtr;
+		for (int i = 0; i < width; ++i, r += 12) {
+			uint16 p1 = *(((const uint16 *)srcPtr) + i);			
+			uint32 pi;
+			uint32 p3;
+			uint32 p4;
+			uint32 p5;
+			uint32 p6;				
+
+			switch (pScanlines) {
+			case 100:	ScanlineBrightness = 0;break;
+			case 80:	ScanlineBrightness = 2;break;
+			case 60:	ScanlineBrightness = 3;break;
+			case 40:	ScanlineBrightness = 4;break;
+			case 20:	ScanlineBrightness = 5;break;
+			default:	ScanlineBrightness = 7;break;
+			}
+			pi = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 3) & ColorMask::kRedBlueMask;
+			pi |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 3) & ColorMask::kGreenMask;
+			p3 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 4) & ColorMask::kRedBlueMask;
+			p3 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 4) & ColorMask::kGreenMask;
+			p4 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 5) & ColorMask::kRedBlueMask;
+			p4 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 5) & ColorMask::kGreenMask;			
+			p5 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 6) & ColorMask::kRedBlueMask;
+			p5 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 6) & ColorMask::kGreenMask;	
+			p6 = (((p1 & ColorMask::kRedBlueMask) * ScanlineBrightness) >> 7) & ColorMask::kRedBlueMask;
+			p6 |= (((p1 & ColorMask::kGreenMask) * ScanlineBrightness) >> 7) & ColorMask::kGreenMask;			
+			*(uint16 *)(r + 0) = p1;
+			*(uint16 *)(r + 2) = p1;
+			*(uint16 *)(r + 4) = p1;
+			*(uint16 *)(r + 6) = p1;
+			*(uint16 *)(r + 8) = p1;
+			*(uint16 *)(r + 10) = p1;			
+			
+			*(uint16 *)(r + 0 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 2 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 4 + dstPitch) = (uint16)pi;			
+			*(uint16 *)(r + 6 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 8 + dstPitch) = (uint16)pi;
+			*(uint16 *)(r + 10 + dstPitch) = (uint16)pi;			
+			
+			*(uint16 *)(r + 0 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 2 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 4 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 6 + dstPitch2) = (uint16)p3;			
+			*(uint16 *)(r + 8 + dstPitch2) = (uint16)p3;
+			*(uint16 *)(r + 10 + dstPitch2) = (uint16)p3;			
+			
+			*(uint16 *)(r + 0 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 2 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 4 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 6 + dstPitch3) = (uint16)p4;	
+			*(uint16 *)(r + 8 + dstPitch3) = (uint16)p4;
+			*(uint16 *)(r + 10 + dstPitch3) = (uint16)p4;			
+			
+			*(uint16 *)(r + 0 + dstPitch4) = (uint16)p5;
+			*(uint16 *)(r + 2 + dstPitch4) = (uint16)p5;
+			*(uint16 *)(r + 4 + dstPitch4) = (uint16)p5;
+			*(uint16 *)(r + 6 + dstPitch4) = (uint16)p5;	
+			*(uint16 *)(r + 8 + dstPitch4) = (uint16)p5;	
+			*(uint16 *)(r + 10 + dstPitch4) = (uint16)p5;	
+
+			*(uint16 *)(r + 0 + dstPitch5) = (uint16)p5;
+			*(uint16 *)(r + 2 + dstPitch5) = (uint16)p5;
+			*(uint16 *)(r + 4 + dstPitch5) = (uint16)p5;
+			*(uint16 *)(r + 6 + dstPitch5) = (uint16)p5;	
+			*(uint16 *)(r + 8 + dstPitch5) = (uint16)p5;	
+			*(uint16 *)(r + 10 + dstPitch5) = (uint16)p5;				
+		}
+		srcPtr += srcPitch;
+		dstPtr += dstPitch6;
+	}
+
+}
+
+void Scanlines6X(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch, int width, int height) {
+	if (gBitFormat == 565)
+		scan6xtemplate<Graphics::ColorMasks<565> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+	else
+		scan6xtemplate<Graphics::ColorMasks<555> >(srcPtr, srcPitch, dstPtr, dstPitch, width, height);
+}
+
+void AdvMame4x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+							 int width, int height) {
+	scale(4, dstPtr, dstPitch, srcPtr - 2 * srcPitch, srcPitch, 2, width, height);
+}
+
+void AdvMame6x(const uint8 *srcPtr, uint32 srcPitch, uint8 *dstPtr, uint32 dstPitch,
+							 int width, int height) {
+	scale(6, dstPtr, dstPitch, srcPtr - srcPitch, srcPitch, 2, width, height);
 }
 
 #endif // #ifdef USE_SCALERS
