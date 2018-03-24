@@ -56,11 +56,59 @@ static const OSystem::GraphicsMode s_supportedGraphicsModes[] = {
 #ifdef USE_SCALERS
 	{"2x", "2x", GFX_DOUBLESIZE},
 	{"3x", "3x", GFX_TRIPLESIZE},
+	{"3x", "3x", GFX_TRIPLESIZE},
+// --------------------------------------- New Scaler Begin		
+ 	{"4x", "4x", GFX_QUADSIZE},
+	{"5x", "5x", GFX_PENTASIZE},
+	{"6x", "6x", GFX_HEXASIZE},	
+// --------------------------------------- New Scaler end
+	{ "tv2x", "TV2x", GFX_TV2X },
+// --------------------------------------- New Scaler Begin	
+	{ "scan2x20", "Scanlines2x  20%", GFX_SCAN2X020 },
+	{ "scan2x40", "Scanlines2x  40%", GFX_SCAN2X040 },
+	{ "scan2x60", "Scanlines2x  60%", GFX_SCAN2X060 },
+	{ "scan2x80", "Scanlines2x  80%", GFX_SCAN2X080 },
+	{ "scan2x100","Scanlines2x 100%", GFX_SCAN2X100 },
+	{ "tv3x", "TV3x", GFX_TV3X },
+	{ "scan3x20", "Scanlines3x  20%", GFX_SCAN3X020 },
+	{ "scan3x40", "Scanlines3x  40%", GFX_SCAN3X040 },
+	{ "scan3x60", "Scanlines3x  60%", GFX_SCAN3X060 },
+	{ "scan3x80", "Scanlines3x  80%", GFX_SCAN3X080 },
+	{ "scan3x100","Scanlines3x 100%", GFX_SCAN3X100 },
+	{ "tv4x", "TV4x", GFX_TV4X },
+	{ "scan4x20", "Scanlines4x  20%", GFX_SCAN4X020 },
+	{ "scan4x40", "Scanlines4x  40%", GFX_SCAN4X040 },
+	{ "scan4x60", "Scanlines4x  60%", GFX_SCAN4X060 },
+	{ "scan4x80", "Scanlines4x  80%", GFX_SCAN4X080 },
+	{ "scan4x100","Scanlines4x 100%", GFX_SCAN4X100 },	
+	{ "tv5x", "TV5x", GFX_TV5X },
+	{ "scan5x20", "Scanlines5x  20%", GFX_SCAN5X020 },
+	{ "scan5x40", "Scanlines5x  40%", GFX_SCAN5X040 },
+	{ "scan5x60", "Scanlines5x  60%", GFX_SCAN5X060 },
+	{ "scan5x80", "Scanlines5x  80%", GFX_SCAN5X080 },
+	{ "scan5x100","Scanlines5x 100%", GFX_SCAN5X100 },	
+	{ "tv6x", "TV6x", GFX_TV6X },
+	{ "scan6x20", "Scanlines6x  20%", GFX_SCAN6X020 },
+	{ "scan6x40", "Scanlines6x  40%", GFX_SCAN6X040 },
+	{ "scan6x60", "Scanlines6x  60%", GFX_SCAN6X060 },
+	{ "scan6x80", "Scanlines6x  80%", GFX_SCAN6X080 },
+	{ "scan6x100","Scanlines6x 100%", GFX_SCAN6X100 },		
+// --------------------------------------- New Scaler ENd	
+	{ "dotmatrix", "DotMatrix", GFX_DOTMATRIX },
+// --------------------------------------- New Scaler Begin		
+	{ "rgb2x","RGB2x", GFX_RGB2X },
+	{ "rgb3x","RGB3x", GFX_RGB3X },	
+	{ "rgb4x","RGB4x", GFX_RGB4X },		
+// --------------------------------------- New Scaler End	
 	{"2xsai", "2xSAI", GFX_2XSAI},
 	{"super2xsai", "Super2xSAI", GFX_SUPER2XSAI},
 	{"supereagle", "SuperEagle", GFX_SUPEREAGLE},
 	{"advmame2x", "AdvMAME2x", GFX_ADVMAME2X},
 	{"advmame3x", "AdvMAME3x", GFX_ADVMAME3X},
+// --------------------------------------- New Scaler Begin	
+	{"advmame4x", "AdvMAME4x", GFX_ADVMAME4X},
+	{"advmame6x", "AdvMAME6x", GFX_ADVMAME6X},	
+// --------------------------------------- New Scaler ENd	
 #ifdef USE_HQ_SCALERS
 	{"hq2x", "HQ2x", GFX_HQ2X},
 	{"hq3x", "HQ3x", GFX_HQ3X},
@@ -92,16 +140,24 @@ static ScalerProc *scalersMagn[3] = {
 #endif
 };
 
-static const int s_gfxModeSwitchTable[][4] = {
-		{ GFX_NORMAL, GFX_DOUBLESIZE, GFX_TRIPLESIZE, -1 },
-		{ GFX_NORMAL, GFX_ADVMAME2X, GFX_ADVMAME3X, -1 },
-		{ GFX_NORMAL, GFX_HQ2X, GFX_HQ3X, -1 },
-		{ GFX_NORMAL, GFX_2XSAI, -1, -1 },
-		{ GFX_NORMAL, GFX_SUPER2XSAI, -1, -1 },
-		{ GFX_NORMAL, GFX_SUPEREAGLE, -1, -1 },
-		{ GFX_NORMAL, GFX_TV2X, -1, -1 },
-		{ GFX_NORMAL, GFX_DOTMATRIX, -1, -1 }
-	};
+static const int s_gfxModeSwitchTable[][7] = {
+// --------------------------------------- New Scaler Begin		
+		{ GFX_NORMAL, GFX_DOUBLESIZE, GFX_TRIPLESIZE, GFX_QUADSIZE, GFX_PENTASIZE, GFX_HEXASIZE, -1 },
+		{ GFX_NORMAL, GFX_TV2X,  GFX_TV3X,  GFX_TV4X,  GFX_TV5X,  GFX_TV6X,-1, },		
+		{ GFX_NORMAL, GFX_SCAN2X020, GFX_SCAN3X020,  GFX_SCAN4X020,  GFX_SCAN5X020,  GFX_SCAN6X020,-1 },	
+		{ GFX_NORMAL, GFX_SCAN2X040, GFX_SCAN3X040,  GFX_SCAN4X020,  GFX_SCAN5X040,  GFX_SCAN6X040,-1 },
+		{ GFX_NORMAL, GFX_SCAN2X060, GFX_SCAN3X060,  GFX_SCAN4X060,  GFX_SCAN5X060,  GFX_SCAN6X060,-1 },			
+		{ GFX_NORMAL, GFX_SCAN2X080, GFX_SCAN3X080,  GFX_SCAN4X080,  GFX_SCAN5X080,  GFX_SCAN6X080,-1 },
+		{ GFX_NORMAL, GFX_SCAN2X100, GFX_SCAN3X100,  GFX_SCAN4X100,  GFX_SCAN5X100,  GFX_SCAN6X100,-1 },	
+		{ GFX_NORMAL, GFX_RGB2X, GFX_RGB3X, GFX_RGB4X, -1,-1,-1},		
+		{ GFX_NORMAL, GFX_DOTMATRIX, -1, -1,-1,-1,-1 },							
+		{ GFX_NORMAL, GFX_ADVMAME2X, GFX_ADVMAME3X, GFX_ADVMAME4X, GFX_PENTASIZE, GFX_ADVMAME6X, -1 },
+		{ GFX_NORMAL, GFX_HQ2X, GFX_HQ3X, -1,-1,-1,-1},
+		{ GFX_NORMAL, GFX_2XSAI, -1, -1,-1,-1,-1 },
+		{ GFX_NORMAL, GFX_SUPER2XSAI, -1, -1,-1,-1,-1 },
+		{ GFX_NORMAL, GFX_SUPEREAGLE, -1, -1,-1,-1,-1 }
+};
+// --------------------------------------- New Scaler End
 
 #ifdef USE_SCALERS
 static int cursorStretch200To240(uint8 *buf, uint32 pitch, int width, int height, int srcX, int srcY, int origSrcY);
@@ -619,6 +675,7 @@ void SurfaceSdlGraphicsManager::detectSupportedFormats() {
 
 int SurfaceSdlGraphicsManager::getGraphicsModeScale(int mode) const {
 	int scale;
+
 	switch (mode) {
 	case GFX_NORMAL:
 		scale = 1;
@@ -629,19 +686,65 @@ int SurfaceSdlGraphicsManager::getGraphicsModeScale(int mode) const {
 	case GFX_SUPER2XSAI:
 	case GFX_SUPEREAGLE:
 	case GFX_ADVMAME2X:
-	case GFX_TV2X:
-	case GFX_DOTMATRIX:
+	case GFX_TV2X:	
+	case GFX_DOTMATRIX:	
 #ifdef USE_HQ_SCALERS
 	case GFX_HQ2X:
-#endif
+
+#endif	
+	case GFX_SCAN2X020:
+	case GFX_SCAN2X040:	
+	case GFX_SCAN2X060:	
+	case GFX_SCAN2X080:	
+	case GFX_SCAN2X100:	
+	case GFX_RGB2X:	
 		scale = 2;
 		break;
+			
+	case GFX_ADVMAME3X:		
 	case GFX_TRIPLESIZE:
-	case GFX_ADVMAME3X:
+	case GFX_TV3X:	
 #ifdef USE_HQ_SCALERS
 	case GFX_HQ3X:
-#endif
+#endif		
+	case GFX_SCAN3X020:
+	case GFX_SCAN3X040:
+	case GFX_SCAN3X060:
+	case GFX_SCAN3X080:
+	case GFX_SCAN3X100:	
+	case GFX_RGB3X:	
 		scale = 3;
+		break;
+// --------------------------------------- New Scaler Begin
+	case GFX_ADVMAME4X:	
+	case GFX_QUADSIZE:
+	case GFX_TV4X:	
+	case GFX_SCAN4X020:
+	case GFX_SCAN4X040:
+	case GFX_SCAN4X060:
+	case GFX_SCAN4X080:
+	case GFX_SCAN4X100:	
+	case GFX_RGB4X:	
+		scale = 4;
+		break;
+	case GFX_PENTASIZE:
+	case GFX_TV5X:	
+	case GFX_SCAN5X020:
+	case GFX_SCAN5X040:
+	case GFX_SCAN5X060:
+	case GFX_SCAN5X080:
+	case GFX_SCAN5X100:	
+		scale = 5;
+		break;
+	case GFX_ADVMAME6X:		
+	case GFX_HEXASIZE:
+	case GFX_TV6X:	
+	case GFX_SCAN6X020:
+	case GFX_SCAN6X040:
+	case GFX_SCAN6X060:
+	case GFX_SCAN6X080:
+	case GFX_SCAN6X100:	
+		scale = 6;
 		break;
 #endif
 	default:
@@ -721,9 +824,147 @@ void SurfaceSdlGraphicsManager::setGraphicsModeIntern() {
 	case GFX_TV2X:
 		newScalerProc = TV2x;
 		break;
+	case GFX_TV3X:
+		newScalerProc = TV3x;
+		break;
 	case GFX_DOTMATRIX:
 		newScalerProc = DotMatrix;
 		break;
+// --------------------------------------- New Scaler Begin		
+	case GFX_TV4X:
+		newScalerProc = TV4x;
+		break;
+	case GFX_TV5X:
+		newScalerProc = TV5x;
+		break;	
+	case GFX_TV6X:
+		newScalerProc = TV6x;
+		break;		
+	case GFX_SCAN2X020:
+		pScanlines = 20;
+		newScalerProc = Scanlines2X;
+		break;
+	case GFX_SCAN2X040:
+		pScanlines = 40;
+		newScalerProc = Scanlines2X;
+		break;
+	case GFX_SCAN2X060:
+		pScanlines = 60;
+		newScalerProc = Scanlines2X;
+		break;
+	case GFX_SCAN2X080:
+		pScanlines = 80;
+		newScalerProc = Scanlines2X;
+		break;
+	case GFX_SCAN2X100:
+		pScanlines = 100;
+		newScalerProc = Scanlines2X;
+		break;
+	case GFX_SCAN3X020:
+		pScanlines = 20;
+		newScalerProc = Scanlines3X;
+		break;
+	case GFX_SCAN3X040:
+		pScanlines = 40;
+		newScalerProc = Scanlines3X;
+		break;
+	case GFX_SCAN3X060:
+		pScanlines = 60;
+		newScalerProc = Scanlines3X;
+		break;
+	case GFX_SCAN3X080:
+		pScanlines = 80;
+		newScalerProc = Scanlines3X;
+		break;
+	case GFX_SCAN3X100:
+		pScanlines = 100;
+		newScalerProc = Scanlines3X;
+		break;
+	case GFX_SCAN4X020:
+		pScanlines = 20;
+		newScalerProc = Scanlines4X;
+		break;
+	case GFX_SCAN4X040:
+		pScanlines = 40;
+		newScalerProc = Scanlines4X;
+		break;
+	case GFX_SCAN4X060:
+		pScanlines = 60;
+		newScalerProc = Scanlines4X;
+		break;
+	case GFX_SCAN4X080:
+		pScanlines = 80;
+		newScalerProc = Scanlines4X;
+		break;
+	case GFX_SCAN4X100:
+		pScanlines = 100;
+		newScalerProc = Scanlines4X;
+		break;
+	case GFX_SCAN5X020:
+		pScanlines = 20;
+		newScalerProc = Scanlines5X;
+		break;
+	case GFX_SCAN5X040:
+		pScanlines = 40;
+		newScalerProc = Scanlines5X;
+		break;
+	case GFX_SCAN5X060:
+		pScanlines = 60;
+		newScalerProc = Scanlines5X;
+		break;
+	case GFX_SCAN5X080:
+		pScanlines = 80;
+		newScalerProc = Scanlines5X;
+		break;
+	case GFX_SCAN5X100:
+		pScanlines = 100;
+		newScalerProc = Scanlines5X;
+		break;			
+	case GFX_SCAN6X020:
+		pScanlines = 20;
+		newScalerProc = Scanlines6X;
+		break;
+	case GFX_SCAN6X040:
+		pScanlines = 40;
+		newScalerProc = Scanlines6X;
+		break;
+	case GFX_SCAN6X060:
+		pScanlines = 60;
+		newScalerProc = Scanlines6X;
+		break;
+	case GFX_SCAN6X080:
+		pScanlines = 80;
+		newScalerProc = Scanlines6X;
+		break;
+	case GFX_SCAN6X100:
+		pScanlines = 100;
+		newScalerProc = Scanlines6X;
+		break;			
+	case GFX_RGB2X:
+		newScalerProc = rgb_2x;
+		break;
+	case GFX_RGB4X:
+		newScalerProc = rgb_4x;
+		break;		
+	case GFX_RGB3X:
+		newScalerProc = rgb_3x;
+		break;		
+	case GFX_QUADSIZE:
+		newScalerProc = Normal4x;
+		break;
+	case GFX_PENTASIZE:
+		newScalerProc = Normal5x;
+		break;
+	case GFX_HEXASIZE:
+		newScalerProc = Normal6x;
+		break;
+	case GFX_ADVMAME4X:
+		newScalerProc = AdvMame4x;
+		break;
+	case GFX_ADVMAME6X:
+		newScalerProc = AdvMame6x;
+		break;				
+// --------------------------------------- New Scaler ENd	
 #endif // USE_SCALERS
 
 	default:

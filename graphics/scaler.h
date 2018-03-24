@@ -28,7 +28,7 @@
 
 extern void InitScalers(uint32 BitFormat);
 extern void DestroyScalers();
-
+extern int pScanlines;
 typedef void ScalerProc(const uint8 *srcPtr, uint32 srcPitch,
 							uint8 *dstPtr, uint32 dstPitch, int width, int height);
 
@@ -43,6 +43,9 @@ DECLARE_SCALER(Normal1x);
 
 DECLARE_SCALER(Normal2x);
 DECLARE_SCALER(Normal3x);
+DECLARE_SCALER(Normal4x);
+DECLARE_SCALER(Normal5x);
+DECLARE_SCALER(Normal6x);
 DECLARE_SCALER(Normal1o5x);
 
 DECLARE_SCALER(_2xSaI);
@@ -51,14 +54,30 @@ DECLARE_SCALER(SuperEagle);
 
 DECLARE_SCALER(AdvMame2x);
 DECLARE_SCALER(AdvMame3x);
+DECLARE_SCALER(AdvMame4x);
+DECLARE_SCALER(AdvMame6x);
 
 DECLARE_SCALER(TV2x);
+DECLARE_SCALER(TV3x);
+DECLARE_SCALER(TV4x);
+DECLARE_SCALER(TV5x);
+DECLARE_SCALER(TV6x);
 DECLARE_SCALER(DotMatrix);
+DECLARE_SCALER(Scanlines2X);
+DECLARE_SCALER(Scanlines3X);
+DECLARE_SCALER(Scanlines4X);
+DECLARE_SCALER(Scanlines5X);
+DECLARE_SCALER(Scanlines6X);
+DECLARE_SCALER(rgb_2x);
+DECLARE_SCALER(rgb_3x);
+DECLARE_SCALER(rgb_4x);
 
 #ifdef USE_HQ_SCALERS
 DECLARE_SCALER(HQ2x);
 DECLARE_SCALER(HQ3x);
 #endif
+
+#define MAX_SCALER_REACH 2
 
 #endif // #ifdef USE_SCALERS
 
