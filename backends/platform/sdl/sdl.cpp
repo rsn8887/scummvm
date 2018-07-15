@@ -184,6 +184,11 @@ bool OSystem_SDL::hasFeature(Feature f) {
 	return ModularBackend::hasFeature(f);
 }
 
+GraphicsManager *OSystem_SDL::getGraphicsManager() {
+	assert(_graphicsManager);
+	return _graphicsManager;
+}
+
 void OSystem_SDL::initBackend() {
 	// Check if backend has not been initialized
 	assert(!_inited);
