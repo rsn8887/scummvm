@@ -263,12 +263,13 @@ void PSP2EventSource::preprocessFingerMotion(SDL_Event *event) {
 			}
 
 			// convert touch events to relative mouse pointer events
-			// Whenever an SDL_event involving the mouse is processed,
-			// Track sub-pixel relative finger motion using the MULTIPLIER
+			// track sub-pixel relative finger motion using the MULTIPLIER
 			_hiresDX += (event->tfinger.dx * 1.25 * speedFactor * _km.x_max * MULTIPLIER);
 			_hiresDY += (event->tfinger.dy * 1.25 * speedFactor * _km.y_max * MULTIPLIER);
-			x = (_km.x + _hiresDX) / MULTIPLIER);
-			y = (_km.y + _hiresDY) / MULTIPLIER);
+			int xRel = _hiresDX / MULTIPLIER;
+			int yRel = _hiresDY / MULTIPLIER;
+			x = (_km.x / MULTIPLIER) + xRel;
+			y = (_km.y / MULTIPLIER) + yRel;
 			_hiresDX %= MULTIPLIER;
 			_hiresDY %= MULTIPLIER;
 		}
