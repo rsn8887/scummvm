@@ -3640,6 +3640,7 @@ case $_backend in
 		_sdl=auto
 		;;
 	switch)
+		_sdl=auto
 		append_var MODULES "backends/platform/sdl"
 		;;
 	tizen)
