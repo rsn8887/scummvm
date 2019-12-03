@@ -3446,7 +3446,7 @@ if test -n "$_host"; then
 			_vkeybd=yes
 			_build_scalers=yes
 			_build_hq_scalers=no
-			_mt32emu=no
+			_mt32emu=yes
 			_timidity=no
 			_eventrec=no
 			_port_mk="backends/platform/sdl/psp2/psp2.mk"
