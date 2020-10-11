@@ -3619,6 +3619,8 @@ if test -n "$_host"; then
 			# This might be related to a known crash on OpenGL de-init due
 			# to the OpenGL implementation on this platform.
 			_opengl_mode=gles2
+			_opengl=yes
+			_opengl_shaders=yes
 			_vkeybd=yes
 			_port_mk="backends/platform/sdl/switch/switch.mk"
 			;;
@@ -5432,6 +5434,9 @@ EOF
 		mingw*)
 			OPENGL_LIBS="-lopengl32"
 			;;
+		switch)
+			OPENGL_LIBS="-lEGL -lglad"
+			;;
 		*)
 			OPENGL_LIBS="-lGL"
 			;;
@@ -5448,7 +5453,7 @@ EOF
 		if test "$_opengl_shaders" = auto; then
 			_opengl_shaders=$_glew
 		fi
-		if test "$_opengl_shaders" = yes && test "$_opengles2" = no && test "$_glew" = no; then
+		if test "$_opengl_shaders" = yes && test "$_opengles2" = no && test "$_glew" = no && test "$_host_os" != switch; then
 			echo "WARNING: OpenGL Shader support requires GLEW!"
 			_opengl_shaders=no
 		fi

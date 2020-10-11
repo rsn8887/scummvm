@@ -356,7 +356,8 @@ endif
 
 ifeq ($(BACKEND),switch)
 MODULE_OBJS += \
-	events/switchsdl/switchsdl-events.o
+	events/switchsdl/switchsdl-events.o \
+	graphics/switchsdl/switchsdl-graphics.o
 endif
 
 ifdef ENABLE_EVENTRECORDER

@@ -51,7 +51,11 @@
 #include "backends/graphics/surfacesdl/surfacesdl-graphics.h"
 #include "backends/graphics3d/surfacesdl/surfacesdl-graphics3d.h"
 #ifdef USE_OPENGL
+#ifdef NINTENDO_SWITCH
+#include "backends/graphics/switchsdl/switchsdl-graphics.h"
+#else
 #include "backends/graphics/openglsdl/openglsdl-graphics.h"
+#endif
 #include "graphics/cursorman.h"
 #endif
 #ifdef USE_OPENGL_GAME
@@ -309,7 +313,7 @@ void OSystem_SDL::initBackend() {
 #ifdef USE_OPENGL_GAME
 void OSystem_SDL::detectFramebufferSupport() {
 	_capabilities.openGLFrameBuffer = false;
-#if defined(USE_GLES2)
+#if defined(USE_GLES2) || defined(NINTENDO_SWITCH)
 	// Framebuffers are always available with GLES2
 	_capabilities.openGLFrameBuffer = true;
 #elif !defined(AMIGAOS)
@@ -340,6 +344,7 @@ void OSystem_SDL::detectFramebufferSupport() {
 void OSystem_SDL::detectAntiAliasingSupport() {
 	_capabilities.openGLAntiAliasLevels.clear();
 
+#ifndef NINTENDO_SWITCH
 	int requestedSamples = 2;
 	while (requestedSamples <= 32) {
 		SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 1);
@@ -380,6 +385,7 @@ void OSystem_SDL::detectAntiAliasingSupport() {
 
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLEBUFFERS, 0);
 	SDL_GL_SetAttribute(SDL_GL_MULTISAMPLESAMPLES, 0);
+#endif
 }
 
 #endif // USE_OPENGL_GAME
@@ -773,7 +779,11 @@ bool OSystem_SDL::setGraphicsMode(int mode, uint flags) {
 				sdlGraphicsManager->deactivateManager();
 				delete sdlGraphicsManager;
 			}
+#ifdef NINTENDO_SWITCH
+			_graphicsManager = sdlGraphicsManager = new SwitchSDLGraphicsManager(_eventSource, _window);
+#else
 			_graphicsManager = sdlGraphicsManager = new OpenGLSdlGraphicsManager(_eventSource, _window);
+#endif
 			switchedManager = true;
 		}
 
@@ -792,7 +802,11 @@ bool OSystem_SDL::setGraphicsMode(int mode, uint flags) {
 				sdlGraphics3dManager->deactivateManager();
 				delete sdlGraphics3dManager;
 			}
+#ifdef NINTENDO_SWITCH
+			_graphicsManager = sdlGraphicsManager = new OpenGLSdlGraphicsManager(_eventSource, _window);
+#else
 			_graphicsManager = sdlGraphics3dManager = new OpenGLSdlGraphics3dManager(_eventSource, _window, _capabilities);
+#endif
 			// Setup feature defaults for 3D gfx while switching from 2D
 			if (sdlGraphicsManager)
 				sdlGraphics3dManager->setDefaultFeatureState();

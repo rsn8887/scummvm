@@ -443,6 +443,10 @@ bool OpenGLSdlGraphicsManager::setupMode(uint width, uint height) {
 	}
 
 	_glContext = SDL_GL_CreateContext(_window->getSDLWindow());
+#ifdef NINTENDO_SWITCH
+	gladLoadGLLoader(SDL_GL_GetProcAddress);
+#endif
+
 	if (!_glContext) {
 		return false;
 	}
