@@ -693,7 +693,12 @@ bool ThemeEngine::addBitmap(const Common::String &filename, const Common::String
 			}
 		}
 
+#ifdef __PSP__
+		_bitmaps[filename] = new Graphics::ManagedSurface(width * _scaleFactor, height * _scaleFactor, _overlayFormat);
+#else
 		_bitmaps[filename] = new Graphics::ManagedSurface(width * _scaleFactor, height * _scaleFactor, *image->getPixelFormat());
+#endif
+
 		image->render(*_bitmaps[filename], width * _scaleFactor, height * _scaleFactor);
 
 		delete image;

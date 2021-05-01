@@ -655,6 +655,15 @@ void PicButtonWidget::drawWidget() {
 		gfx = &_gfx[kPicButtonStateEnabled];
 
 	if (gfx->getPixels()) {
+#ifdef __PSP__
+		// Check whether the set up surface needs to be converted to the GUI
+		// color format.
+		const Graphics::PixelFormat &requiredFormat = g_gui.theme()->getPixelFormat();
+		if (gfx->format != requiredFormat) {
+			gfx->convertToInPlace(requiredFormat);
+		}
+#endif
+
 		const int x = _x + (_w - gfx->w) / 2;
 		const int y = _y + (_h - gfx->h) / 2;
 
@@ -924,6 +933,15 @@ void GraphicsWidget::setGfxFromTheme(const char *name) {
 
 void GraphicsWidget::drawWidget() {
 	if (_gfx.getPixels()) {
+#ifdef __PSP__
+		// Check whether the set up surface needs to be converted to the GUI
+		// color format.
+		const Graphics::PixelFormat &requiredFormat = g_gui.theme()->getPixelFormat();
+		if (_gfx.format != requiredFormat) {
+			_gfx.convertToInPlace(requiredFormat);
+		}
+#endif
+
 		const int x = _x + (_w - _gfx.w) / 2;
 		const int y = _y + (_h - _gfx.h) / 2;
 
